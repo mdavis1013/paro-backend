@@ -66,4 +66,12 @@ router.post('/login', async (req, res) => {
   }
 })
 
+// POST /auth/check-email
+router.post('/check-email', async (req, res) => {
+  const { email } = req.body
+  if (!email) return res.status(400).json({ error: 'Email required' })
+  const result = await pool.query('SELECT id FROM users WHERE email = $1', [email])
+  res.json({ exists: result.rows.length > 0 })
+})
+
 module.exports = router
