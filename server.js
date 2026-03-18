@@ -1,5 +1,3 @@
-console.log('Railway PORT env:', process.env.PORT)
-
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config()
 }
