@@ -5,7 +5,7 @@ const authenticateToken = require('../middleware/auth');
 
 // GET /messages/conversations
 router.get('/conversations', authenticateToken, async (req, res) => {
-  const userId = req.user.Id;
+  const userId = req.userId;
   try {
     const result = await pool.query(`
       SELECT
@@ -35,7 +35,7 @@ router.get('/conversations', authenticateToken, async (req, res) => {
 
 // POST /messages/conversations
 router.post('/conversations', authenticateToken, async (req, res) => {
-  const myId = req.user.Id;
+  const myId = req.userId;
   const { other_user_id } = req.body;
   if (!other_user_id) return res.status(400).json({ error: 'other_user_id required' });
 
@@ -58,7 +58,7 @@ router.post('/conversations', authenticateToken, async (req, res) => {
 
 // GET /messages/conversations/:id
 router.get('/conversations/:id', authenticateToken, async (req, res) => {
-  const userId = req.user.Id;
+  const userId = req.userId;
   const convId = req.params.id;
   try {
     const check = await pool.query(
@@ -82,7 +82,7 @@ router.get('/conversations/:id', authenticateToken, async (req, res) => {
 
 // POST /messages/conversations/:id
 router.post('/conversations/:id', authenticateToken, async (req, res) => {
-  const userId = req.user.Id;
+  const userId = req.userId;
   const convId = req.params.id;
   const { content } = req.body;
   if (!content?.trim()) return res.status(400).json({ error: 'content required' });
