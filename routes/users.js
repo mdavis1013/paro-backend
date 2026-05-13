@@ -6,17 +6,17 @@ const verify = require('../middleware/auth')
 router.get('/me', verify, async (req, res) => {
   try {
     const userResult = await pool.query(
-      `SELECT id, name, email, avatar_url, bio, city_label
-       FROM users WHERE id = $1`,
-      [req.userId]
+        `SELECT id, name, email, avatar_url, bio, city_label
+         FROM users WHERE id = $1`,
+        [req.userId]
     );
 
     const tagsResult = await pool.query(
-      `SELECT t.name AS tag_name, t.type AS tag_type
-      FROM user_tags ut
-      JOIN tags t ON ut.tag_id = t.id
-      WHERE ut.user_id = $1`,
-      [req.userId]
+        `SELECT t.name AS tag_name, t.type AS tag_type
+         FROM user_tags ut
+                JOIN tags t ON ut.tag_id = t.id
+         WHERE ut.user_id = $1`,
+        [req.userId]
     );
 
     res.json({
@@ -35,12 +35,12 @@ router.patch('/me/location', verify, async (req, res) => {
 
   try {
     await pool.query(
-      `UPDATE users
-       SET location   = ST_MakePoint($1, $2)::geography,
+        `UPDATE users
+         SET location   = ST_MakePoint($1, $2)::geography,
            city_label = $3,
            updated_at = NOW()
-       WHERE id = $4`,
-      [lng, lat, city_label, req.userId]
+         WHERE id = $4`,
+        [lng, lat, city_label, req.userId]
     )
     res.json({ success: true })
   } catch (err) {
@@ -56,20 +56,20 @@ router.post('/me/tags', verify, async (req, res) => {
   try {
     // find or create the tag
     const tagResult = await pool.query(
-      `INSERT INTO tags (name, type)
-       VALUES ($1, $2)
-       ON CONFLICT (name, type) DO UPDATE SET name = EXCLUDED.name
-       RETURNING id`,
-      [tag_name, tag_type]
+        `INSERT INTO tags (name, type)
+         VALUES ($1, $2)
+           ON CONFLICT (name, type) DO UPDATE SET name = EXCLUDED.name
+                                         RETURNING id`,
+        [tag_name, tag_type]
     );
 
     const tag_id = tagResult.rows[0].id;
 
     // link tag to user
     await pool.query(
-      `INSERT INTO user_tags (user_id, tag_id) VALUES ($1, $2)
-       ON CONFLICT DO NOTHING`,
-      [req.userId, tag_id]
+        `INSERT INTO user_tags (user_id, tag_id) VALUES ($1, $2)
+          ON CONFLICT DO NOTHING`,
+        [req.userId, tag_id]
     );
 
     res.json({ success: true });
@@ -77,5 +77,26 @@ router.post('/me/tags', verify, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// DELETE /users/me  — delete account and all associated data
+router.delete('/me', verify, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM user_tags WHERE user_id = $1', [req.userId])
+    await pool.query(
+        `DELETE FROM chat_messages WHERE conversation_id IN (
+        SELECT id FROM conversations WHERE user1_id = $1 OR user2_id = $1
+      )`,
+        [req.userId]
+    )
+    await pool.query(
+        'DELETE FROM conversations WHERE user1_id = $1 OR user2_id = $1',
+        [req.userId]
+    )
+    await pool.query('DELETE FROM users WHERE id = $1', [req.userId])
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
 
 module.exports = router
